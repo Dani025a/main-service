@@ -3,12 +3,6 @@ import { z } from "zod";
 
 dotenv.config();
 
-function splitCsv(v: string | undefined): string[] {
-    return (v ?? "")
-        .split(",")
-        .map((s) => s.trim())
-        .filter(Boolean);
-}
 
 const EnvSchema = z.object({
     NODE_ENV: z
@@ -18,7 +12,6 @@ const EnvSchema = z.object({
     LOG_LEVEL: z
         .enum(["fatal", "error", "warn", "info", "debug", "trace", "silent"])
         .default("info"),
-    ALLOWED_ORIGINS: z.string().optional(),
 
     GATEWAY_ASSERTION_SECRET: z.string().min(16),
     GATEWAY_ASSERTION_ISSUER: z.string().min(1).default("api-gateway"),
@@ -42,7 +35,6 @@ if (!parsed.success) {
     throw new Error("Invalid environment variables");
 }
 
-export const env = {
-    ...parsed.data,
-    ALLOWED_ORIGINS_LIST: splitCsv(parsed.data.ALLOWED_ORIGINS),
-};
+export const env = parsed.data
+
+export const isProd = env.NODE_ENV === "production";
