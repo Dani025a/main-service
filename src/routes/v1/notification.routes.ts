@@ -7,7 +7,7 @@ import {
     listNotificationQuerySchema,
     markNotificationReadBodySchema,
     updateNotificationParamsSchema,
-} from "./notification.schemas.js";
+} from "../../schemas/notification.schemas.js";
 
 export const notificationRoutes = Router();
 

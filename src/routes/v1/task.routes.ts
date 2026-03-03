@@ -9,7 +9,7 @@ import {
     sellerTaskParamsSchema,
     updateTaskBodySchema,
     updateTaskParamsSchema,
-} from "./task.schemas.js";
+} from "../../schemas/task.schemas.js";
 
 export const taskRoutes = Router();
 

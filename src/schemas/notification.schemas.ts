@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { NotificationKinds } from "../../services/notification.service.js";
+import { NotificationKinds } from "../services/notification.service.js";
 
 const notificationKindEnum = z.enum(NotificationKinds);
 

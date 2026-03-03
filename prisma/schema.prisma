@@ -1,3 +1,5 @@
+// prisma/schema.prisma
+
 generator client {
   provider = "prisma-client-js"
 }
@@ -7,13 +9,11 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-enum TaskStatus {
-  AFVENTER   @map("Afventer")
-  IGANG      @map("Igang")
-  UDFORT     @map("Udført")
-  ANNULLERET @map("Annulleret")
-
-  @@map("task_status")
+enum ClientApp {
+  AFVENTER
+  IGANG
+  UDFORT
+  ANNULLERET
 }
 
 model Task {

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { TaskStatuses } from "../../services/task.service.js";
+import { TaskStatuses } from "../services/task.service.js";
 
 const taskStatusEnum = z.enum(TaskStatuses);
 
