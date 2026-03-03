@@ -16,7 +16,6 @@
         "sourceMap": true,
         "types": [
             "node",
-            "vitest/globals"
         ]
     },
     "include": [
