@@ -1,0 +1,48 @@
+trigger:
+  branches:
+    include:
+      - main
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+steps:
+- task: NodeTool@0
+  displayName: "Use Node 20"
+  inputs:
+    versionSpec: '20.x'
+
+# Installer devDependencies (den eneste stabile metode)
+- script: npm install --include=dev
+  displayName: "Install ALL dependencies (dev included)"
+
+- script: npm run typecheck --if-present
+  displayName: "Typecheck (tsc)"
+
+- script: npm run build
+  displayName: "Build"
+
+- task: ArchiveFiles@2
+  displayName: "Archive build"
+  inputs:
+    rootFolderOrFile: "$(System.DefaultWorkingDirectory)"
+    includeRootFolder: false
+    archiveType: "zip"
+    archiveFile: "$(Build.ArtifactStagingDirectory)/$(Build.BuildId).zip"
+    replaceExistingArchive: true
+
+- task: PublishBuildArtifacts@1
+  displayName: "Publish artifacts"
+  inputs:
+    PathtoPublish: "$(Build.ArtifactStagingDirectory)"
+    ArtifactName: "drop"
+    publishLocation: "Container"
+
+- task: AzureWebApp@1
+  displayName: "Deploy til Azure Web App"
+  inputs:
+    azureSubscription: "Sales-Portal-sc"
+    appType: "webAppLinux"
+    appName: "main-service-sn"
+    package: "$(Build.ArtifactStagingDirectory)/$(Build.BuildId).zip"
+    startupCommand: "node dist/index.js"
