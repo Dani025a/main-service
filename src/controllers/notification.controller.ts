@@ -36,7 +36,16 @@ export const notificationController = {
                 throw new AppError(400, "VALIDATION_ERROR", "Invalid notification query", parsed.error.flatten());
             }
 
-            const notifications = await listNotifications(parsed.data);
+            const filters = {
+                ...(parsed.data.sellerId ? { sellerId: parsed.data.sellerId } : {}),
+                ...(parsed.data.relatedQuote ? { relatedQuote: parsed.data.relatedQuote } : {}),
+                ...(parsed.data.relatedCustomer ? { relatedCustomer: parsed.data.relatedCustomer } : {}),
+                ...(parsed.data.sortBy ? { sortBy: parsed.data.sortBy } : {}),
+                ...(parsed.data.sortOrder ? { sortOrder: parsed.data.sortOrder } : {}),
+            };
+
+            const notifications = await listNotifications(filters);
+
             res.json({ ok: true, data: notifications });
         } catch (error) {
             next(error);
@@ -50,7 +59,15 @@ export const notificationController = {
                 throw new AppError(400, "VALIDATION_ERROR", "Invalid notification payload", parsed.error.flatten());
             }
 
-            const payload: z.infer<typeof CreateNotificationSchema> = parsed.data;
+            const payload = {
+                sellerId: parsed.data.sellerId,
+                kind: parsed.data.kind,
+                message: parsed.data.message,
+                ...(parsed.data.relatedQuote ? { relatedQuote: parsed.data.relatedQuote } : {}),
+                ...(parsed.data.relatedCustomer ? { relatedCustomer: parsed.data.relatedCustomer } : {}),
+            };
+
+
             const notification = await createNotification(payload);
             res.status(201).json({ ok: true, data: notification });
         } catch (error) {

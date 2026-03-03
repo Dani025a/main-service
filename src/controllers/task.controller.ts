@@ -48,7 +48,15 @@ export const taskController = {
                 throw new AppError(400, "VALIDATION_ERROR", "Invalid task query", parsed.error.flatten());
             }
 
-            const tasks = await listTasks(parsed.data);
+            const filters = {
+                ...(parsed.data.sellerId ? { sellerId: parsed.data.sellerId } : {}),
+                ...(parsed.data.customerId ? { customerId: parsed.data.customerId } : {}),
+                ...(parsed.data.quoteId ? { quoteId: parsed.data.quoteId } : {}),
+                ...(parsed.data.statuses ? { statuses: parsed.data.statuses } : {}),
+            };
+
+            const tasks = await listTasks(filters);
+
             res.json({ ok: true, data: tasks });
         } catch (error) {
             next(error);
@@ -62,7 +70,16 @@ export const taskController = {
                 throw new AppError(400, "VALIDATION_ERROR", "Invalid task payload", parsed.error.flatten());
             }
 
-            const payload: z.infer<typeof CreateTaskSchema> = parsed.data;
+            const payload = {
+                title: parsed.data.title,
+                sellerId: parsed.data.sellerId,
+                customerId: parsed.data.customerId,
+                quoteId: parsed.data.quoteId,
+                ...(parsed.data.deadline ? { deadline: parsed.data.deadline } : {}),
+                ...(parsed.data.status ? { status: parsed.data.status } : {}),
+            };
+
+
             const task = await createTask(payload);
             res.status(201).json({ ok: true, data: task });
         } catch (error) {
