@@ -45,6 +45,7 @@ export const notificationController = {
             };
 
             const notifications = await listNotifications(filters);
+
             res.json({ ok: true, data: notifications });
         } catch (error) {
             next(error);
@@ -65,6 +66,7 @@ export const notificationController = {
                 ...(parsed.data.relatedQuote ? { relatedQuote: parsed.data.relatedQuote } : {}),
                 ...(parsed.data.relatedCustomer ? { relatedCustomer: parsed.data.relatedCustomer } : {}),
             };
+
 
             const notification = await createNotification(payload);
             res.status(201).json({ ok: true, data: notification });

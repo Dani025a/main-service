@@ -56,6 +56,7 @@ export const taskController = {
             };
 
             const tasks = await listTasks(filters);
+
             res.json({ ok: true, data: tasks });
         } catch (error) {
             next(error);
@@ -77,6 +78,7 @@ export const taskController = {
                 ...(parsed.data.deadline ? { deadline: parsed.data.deadline } : {}),
                 ...(parsed.data.status ? { status: parsed.data.status } : {}),
             };
+
 
             const task = await createTask(payload);
             res.status(201).json({ ok: true, data: task });
