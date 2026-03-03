@@ -18,9 +18,9 @@ export type Task = {
 type TaskRow = {
     id: string;
     title: string;
-    sellerid: string;
-    customerid: string;
-    quoteid: string;
+    seller_id: string;
+    customer_id: string;
+    quote_id: string;
     deadline: Date | null;
     status: TaskStatus;
 };
@@ -29,9 +29,9 @@ function mapRow(row: TaskRow): Task {
     return {
         id: row.id,
         title: row.title,
-        sellerId: row.sellerid,
-        customerId: row.customerid,
-        quoteId: row.quoteid,
+        sellerId: row.seller_id,
+        customerId: row.customer_id,
+        quoteId: row.quote_id,
         deadline: row.deadline ? row.deadline.toISOString() : null,
         status: row.status,
     };
@@ -43,27 +43,27 @@ export async function listTasks(input: {
     quoteId?: string;
     statuses?: TaskStatus[];
 }) {
-    const values: (string | string[])[] = [];
+    const values: unknown[] = [];
     const where: string[] = [];
 
     if (input.sellerId) {
         values.push(input.sellerId);
-        where.push(`"sellerId" = $${values.length}`);
+        where.push(`seller_id = $${values.length}`);
     }
 
     if (input.customerId) {
         values.push(input.customerId);
-        where.push(`"customerId" = $${values.length}`);
+        where.push(`customer_id = $${values.length}`);
     }
 
     if (input.quoteId) {
         values.push(input.quoteId);
-        where.push(`"quoteId" = $${values.length}`);
+        where.push(`quote_id = $${values.length}`);
     }
 
     if (input.statuses && input.statuses.length > 0) {
         values.push(input.statuses);
-        where.push(`status = ANY($${values.length}::text[])`);
+        where.push(`status = ANY($${values.length}::task_status[])`);
     }
 
     const result = await db.query<TaskRow>(
@@ -71,9 +71,9 @@ export async function listTasks(input: {
         SELECT
             id,
             title,
-            "sellerId" as sellerid,
-            "customerId" as customerid,
-            "quoteId" as quoteid,
+            seller_id,
+            customer_id,
+            quote_id,
             deadline,
             status
         FROM tasks
@@ -91,26 +91,26 @@ export async function createTask(input: {
     sellerId: string;
     customerId: string;
     quoteId: string;
-    deadline?: string;
-    status?: TaskStatus;
+    deadline?: string | undefined;
+    status?: TaskStatus | undefined;
 }) {
     const result = await db.query<TaskRow>(
         `
         INSERT INTO tasks (
             title,
-            "sellerId",
-            "customerId",
-            "quoteId",
+            seller_id,
+            customer_id,
+            quote_id,
             deadline,
             status
         )
-        VALUES ($1, $2, $3, $4, $5, $6)
+        VALUES ($1, $2, $3, $4, $5, $6::task_status)
         RETURNING
             id,
             title,
-            "sellerId" as sellerid,
-            "customerId" as customerid,
-            "quoteId" as quoteid,
+            seller_id,
+            customer_id,
+            quote_id,
             deadline,
             status
         `,
@@ -136,14 +136,14 @@ export async function changeTaskStatus(id: string, status: TaskStatus) {
     const result = await db.query<TaskRow>(
         `
         UPDATE tasks
-        SET status = $2
+        SET status = $2::task_status
         WHERE id = $1
         RETURNING
             id,
             title,
-            "sellerId" as sellerid,
-            "customerId" as customerid,
-            "quoteId" as quoteid,
+            seller_id,
+            customer_id,
+            quote_id,
             deadline,
             status
         `,
