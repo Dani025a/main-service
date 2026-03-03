@@ -1,4 +1,4 @@
-import { NotificationKind } from "@prisma/client";
+import { NotificationKind, Prisma } from "@prisma/client";
 import { prisma } from "../lib/prisma.js";
 import { AppError } from "../utils/errors.js";
 
@@ -33,8 +33,12 @@ export async function createNotification(input: CreateNotificationInput) {
             sellerId: input.sellerId,
             kind: input.kind,
             message: input.message,
-            relatedOrder: input.relatedOrder,
-            relatedCustomer: input.relatedCustomer,
+            ...(input.relatedOrder !== undefined
+                ? { relatedOrder: input.relatedOrder as Prisma.InputJsonValue | Prisma.NullableJsonNullValueInput }
+                : {}),
+            ...(input.relatedCustomer !== undefined
+                ? { relatedCustomer: input.relatedCustomer as Prisma.InputJsonValue | Prisma.NullableJsonNullValueInput }
+                : {}),
         },
     });
 }

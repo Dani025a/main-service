@@ -33,9 +33,9 @@ export async function createTask(input: CreateTaskInput) {
             title: input.title,
             sellerId: input.sellerId,
             customerId: input.customerId,
-            orderId: input.orderId,
-            deadline: input.deadline,
-            status: input.status,
+            ...(input.orderId !== undefined ? { orderId: input.orderId } : {}),
+            ...(input.deadline !== undefined ? { deadline: input.deadline } : {}),
+            ...(input.status !== undefined ? { status: input.status } : {}),
         },
     });
 }

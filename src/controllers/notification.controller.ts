@@ -30,7 +30,7 @@ export const notificationController = {
 
             const notifications = await listNotificationsForSeller({
                 sellerId: principal.userId,
-                read: query.read,
+                ...(query.read !== undefined ? { read: query.read } : {}),
             });
 
             res.json({ ok: true, data: notifications });
@@ -48,8 +48,8 @@ export const notificationController = {
                 sellerId: body.sellerId ?? principal.userId,
                 kind: body.kind,
                 message: body.message,
-                relatedOrder: body.relatedOrder,
-                relatedCustomer: body.relatedCustomer,
+                ...(body.relatedOrder !== undefined ? { relatedOrder: body.relatedOrder } : {}),
+                ...(body.relatedCustomer !== undefined ? { relatedCustomer: body.relatedCustomer } : {}),
             });
 
             res.status(201).json({ ok: true, data: notification });
