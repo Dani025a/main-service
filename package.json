@@ -13,7 +13,6 @@
         "worker:outbox": "tsx src/workers/outboxPublisher.ts"
     },
     "dependencies": {
-        "@prisma/client": "^5.18.0",
         "compression": "^1.8.1",
         "dotenv": "^16.6.1",
         "express": "^4.19.2",
@@ -36,7 +35,6 @@
         "@types/pg": "^8.18.0",
         "eslint": "^9.9.0",
         "prettier": "^3.3.3",
-        "prisma": "^5.18.0",
         "tsx": "^4.19.0",
         "typescript": "^5.6.3"
     }
