@@ -18,7 +18,7 @@ const EnvSchema = z.object({
     LOG_LEVEL: z
         .enum(["fatal", "error", "warn", "info", "debug", "trace", "silent"])
         .default("info"),
-
+    ALLOWED_ORIGINS: z.string().optional(),
 
     GATEWAY_ASSERTION_SECRET: z.string().min(16),
     GATEWAY_ASSERTION_ISSUER: z.string().min(1).default("api-gateway"),

@@ -9,11 +9,18 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-enum ClientApp {
+enum TaskStatus {
   AFVENTER
   IGANG
   UDFORT
   ANNULLERET
+}
+
+enum NotificationKind {
+  SYSTEM
+  ORDER
+  ANALYSIS
+  CUSTOMER
 }
 
 model Task {
@@ -33,4 +40,19 @@ model Task {
   @@index([status], map: "idx_tasks_status")
   @@index([deadline], map: "idx_tasks_deadline")
   @@map("tasks")
+}
+
+model Notification {
+  id              String           @id @default(uuid()) @db.Uuid
+  kind            NotificationKind
+  message         String
+  timestamp       DateTime         @default(now()) @db.Timestamptz(6)
+  read            Boolean          @default(false)
+  relatedOrder    Json?            @map("related_order")
+  relatedCustomer Json?            @map("related_customer")
+
+  @@index([kind], map: "idx_notifications_kind")
+  @@index([read], map: "idx_notifications_read")
+  @@index([timestamp], map: "idx_notifications_timestamp")
+  @@map("notifications")
 }
