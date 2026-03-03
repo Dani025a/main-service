@@ -1,48 +1,5 @@
-# Node
-node_modules/
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-pnpm-debug.log*
-lerna-debug.log*
-
-# Env / secrets
+node_modules
+dist
 .env
-.env.*
-!.env.example
-
-# Build outputs
-dist/
-build/
-out/
-coverage/
-
-# Logs
-logs/
-*.log
-
-# Runtime
-pids/
-*.pid
-*.seed
-*.pid.lock
-
-# OS / editor
 .DS_Store
-Thumbs.db
-.vscode/
-.idea/
-
-# TypeScript
-*.tsbuildinfo
-
-# Cache
-.cache/
-.tmp/
-temp/
-.eslintcache
-.nyc_output/
-
-# Next.js (if relevant)
-.next/
-
+coverage
