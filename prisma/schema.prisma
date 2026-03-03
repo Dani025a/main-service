@@ -44,6 +44,7 @@ model Task {
 
 model Notification {
   id              String           @id @default(uuid()) @db.Uuid
+  sellerId        String           @map("seller_id")
   kind            NotificationKind
   message         String
   timestamp       DateTime         @default(now()) @db.Timestamptz(6)
@@ -51,6 +52,7 @@ model Notification {
   relatedOrder    Json?            @map("related_order")
   relatedCustomer Json?            @map("related_customer")
 
+  @@index([sellerId], map: "idx_notifications_seller_id")
   @@index([kind], map: "idx_notifications_kind")
   @@index([read], map: "idx_notifications_read")
   @@index([timestamp], map: "idx_notifications_timestamp")
