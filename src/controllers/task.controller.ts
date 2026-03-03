@@ -58,7 +58,7 @@ export const taskController = {
             const tasks = await listTasksForUser({
                 userId: principal.userId,
                 as: query.as,
-                statuses: query.statuses,
+                ...(query.statuses !== undefined ? { statuses: query.statuses } : {}),
             });
 
             res.json({ ok: true, data: tasks });
@@ -72,7 +72,14 @@ export const taskController = {
             requireUserPrincipal(req);
             const body = TaskBodySchema.parse(req.body);
 
-            const task = await createTask(body);
+            const task = await createTask({
+                title: body.title,
+                sellerId: body.sellerId,
+                customerId: body.customerId,
+                ...(body.orderId !== undefined ? { orderId: body.orderId } : {}),
+                ...(body.deadline !== undefined ? { deadline: body.deadline } : {}),
+                ...(body.status !== undefined ? { status: body.status } : {}),
+            });
             res.status(201).json({ ok: true, data: task });
         } catch (error) {
             next(error);
