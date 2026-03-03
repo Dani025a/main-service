@@ -1,8 +1,12 @@
-import { randomUUID } from "node:crypto";
+import type {
+    NotificationKind as PrismaNotificationKind,
+    Prisma,
+} from "@prisma/client";
+import { prisma } from "../lib/prisma.js";
 import { AppError } from "../utils/errors.js";
 
 export const NotificationKinds = ["SYSTEM", "ORDER", "ANALYSIS", "CUSTOMER"] as const;
-export type NotificationKind = (typeof NotificationKinds)[number];
+export type NotificationKind = PrismaNotificationKind;
 
 export type NotificationRelatedOrder = { orderId?: string | null };
 export type NotificationRelatedCustomer = { id?: string | null };
@@ -31,48 +35,70 @@ export type NotificationFilter = {
     read?: boolean;
 };
 
-const notifications = new Map<string, NotificationRecord>();
-
-function applyFilter(item: NotificationRecord, filter: NotificationFilter): boolean {
-    if (filter.kind && item.kind !== filter.kind) return false;
-    if (filter.read !== undefined && item.read !== filter.read) return false;
-    return true;
-}
-
-export async function createNotification(input: CreateNotificationInput): Promise<NotificationRecord> {
-    const now = new Date();
+function mapNotification(record: {
+    id: string;
+    kind: NotificationKind;
+    message: string;
+    timestamp: Date;
+    read: boolean;
+    relatedOrder: Prisma.JsonValue | null;
+    relatedCustomer: Prisma.JsonValue | null;
+}): NotificationRecord {
     const notification: NotificationRecord = {
-        id: randomUUID(),
-        kind: input.kind,
-        message: input.message,
-        timestamp: input.timestamp ?? now,
-        read: input.read ?? false,
+        id: record.id,
+        kind: record.kind,
+        message: record.message,
+        timestamp: record.timestamp,
+        read: record.read,
     };
 
-    if (input.relatedOrder !== undefined) notification.relatedOrder = input.relatedOrder;
-    if (input.relatedCustomer !== undefined) notification.relatedCustomer = input.relatedCustomer;
+    if (record.relatedOrder !== null) {
+        notification.relatedOrder = record.relatedOrder as NotificationRelatedOrder | null;
+    }
 
-    notifications.set(notification.id, notification);
+    if (record.relatedCustomer !== null) {
+        notification.relatedCustomer = record.relatedCustomer as NotificationRelatedCustomer | null;
+    }
+
     return notification;
 }
 
+export async function createNotification(input: CreateNotificationInput): Promise<NotificationRecord> {
+    const created = await prisma.notification.create({
+        data: {
+            kind: input.kind,
+            message: input.message,
+            ...(input.timestamp ? { timestamp: input.timestamp } : {}),
+            ...(input.read !== undefined ? { read: input.read } : {}),
+            ...(input.relatedOrder !== undefined ? { relatedOrder: input.relatedOrder } : {}),
+            ...(input.relatedCustomer !== undefined ? { relatedCustomer: input.relatedCustomer } : {}),
+        },
+    });
+
+    return mapNotification(created);
+}
+
 export async function listNotifications(filter: NotificationFilter): Promise<NotificationRecord[]> {
-    return [...notifications.values()]
-        .filter((item) => applyFilter(item, filter))
-        .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+    const notifications = await prisma.notification.findMany({
+        where: {
+            ...(filter.kind ? { kind: filter.kind } : {}),
+            ...(filter.read !== undefined ? { read: filter.read } : {}),
+        },
+        orderBy: { timestamp: "desc" },
+    });
+
+    return notifications.map(mapNotification);
 }
 
 export async function markNotificationRead(notificationId: string, read: boolean): Promise<NotificationRecord> {
-    const existing = notifications.get(notificationId);
-    if (!existing) {
+    try {
+        const updated = await prisma.notification.update({
+            where: { id: notificationId },
+            data: { read },
+        });
+
+        return mapNotification(updated);
+    } catch {
         throw new AppError(404, "NOT_FOUND", "Notification not found");
     }
-
-    const next: NotificationRecord = {
-        ...existing,
-        read,
-    };
-
-    notifications.set(notificationId, next);
-    return next;
 }

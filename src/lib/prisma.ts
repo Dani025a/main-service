@@ -1,15 +1,13 @@
 import { PrismaClient } from "@prisma/client";
-import { isProd } from "../config/env.js";
+import { env } from "../config/env.js";
 
-let prisma: PrismaClient;
+const globalForPrisma = globalThis as unknown as {
+    prisma?: PrismaClient;
+};
 
-if (!isProd) {
-  // @ts-ignore
-  globalThis.__PRISMA__ = globalThis.__PRISMA__ ?? new PrismaClient();
-  // @ts-ignore
-  prisma = globalThis.__PRISMA__;
-} else {
-  prisma = new PrismaClient();
-}
+const prisma =
+    env.NODE_ENV === "production"
+        ? new PrismaClient()
+        : (globalForPrisma.prisma ??= new PrismaClient());
 
 export { prisma };
