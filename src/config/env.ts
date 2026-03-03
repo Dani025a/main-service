@@ -13,6 +13,13 @@ const EnvSchema = z.object({
         .enum(["fatal", "error", "warn", "info", "debug", "trace", "silent"])
         .default("info"),
 
+    PGHOST: z.string().min(1),
+    PGUSER: z.string().min(1),
+    PGPORT: z.coerce.number().int().min(1).max(65535).default(5432),
+    PGDATABASE: z.string().min(1),
+    PGPASSWORD: z.string().min(1),
+    PGSSL: z.string().optional(),
+
     GATEWAY_ASSERTION_SECRET: z.string().min(16),
     GATEWAY_ASSERTION_ISSUER: z.string().min(1).default("api-gateway"),
     GATEWAY_ASSERTION_AUDIENCE: z.string().min(1).default("aggregate-service"),
