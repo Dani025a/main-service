@@ -20,8 +20,8 @@ const CreateNotificationSchema = z.object({
     sellerId: z.string().min(1),
     kind: z.enum(notificationKinds),
     message: z.string().min(1),
-    relatedQuote: z.string().min(1).optional(),
-    relatedCustomer: z.string().min(1).optional(),
+    relatedQuote: z.string().min(1).nullish(),
+    relatedCustomer: z.string().min(1).nullish(),
 });
 
 const NotificationParamSchema = z.object({
