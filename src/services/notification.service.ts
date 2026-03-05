@@ -11,6 +11,32 @@ type PgError = {
     detail?: string;
 };
 
+function throwNotificationWriteError(error: unknown): never {
+    const pgError = error as PgError;
+    if (pgError.code === "23503") {
+        if (pgError.constraint === "fk_notifications_related_quote") {
+            throw new AppError(400, "VALIDATION_ERROR", "relatedQuote does not exist");
+        }
+
+        if (pgError.constraint === "fk_notifications_related_customer") {
+            throw new AppError(400, "VALIDATION_ERROR", "relatedCustomer does not exist");
+        }
+
+        if (pgError.constraint === "fk_notifications_seller") {
+            throw new AppError(400, "VALIDATION_ERROR", "sellerId does not exist");
+        }
+
+        throw new AppError(
+            400,
+            "VALIDATION_ERROR",
+            "Notification references unknown related entities",
+            { detail: pgError.detail }
+        );
+    }
+
+    throw error;
+}
+
 export type Notification = {
     id: string;
     sellerId: string;
@@ -131,29 +157,7 @@ export async function createNotification(input: {
             ],
         );
     } catch (error) {
-        const pgError = error as PgError;
-        if (pgError.code === "23503") {
-            if (pgError.constraint === "fk_notifications_related_quote") {
-                throw new AppError(400, "VALIDATION_ERROR", "relatedQuote does not exist");
-            }
-
-            if (pgError.constraint === "fk_notifications_related_customer") {
-                throw new AppError(400, "VALIDATION_ERROR", "relatedCustomer does not exist");
-            }
-
-            if (pgError.constraint === "fk_notifications_seller") {
-                throw new AppError(400, "VALIDATION_ERROR", "sellerId does not exist");
-            }
-
-            throw new AppError(
-                400,
-                "VALIDATION_ERROR",
-                "Notification references unknown related entities",
-                { detail: pgError.detail }
-            );
-        }
-
-        throw error;
+        throwNotificationWriteError(error);
     }
 
     const row = result.rows[0];
@@ -162,6 +166,59 @@ export async function createNotification(input: {
     }
 
     return mapRow(row);
+}
+
+export async function createNotificationIfMissing(input: {
+    id: string;
+    sellerId: string;
+    kind: NotificationKind;
+    message: string;
+    relatedQuote?: string | null;
+    relatedCustomer?: string | null;
+}) {
+    let result;
+    try {
+        result = await db.query<NotificationRow>(
+            `
+            INSERT INTO notifications (
+                id,
+                seller_id,
+                kind,
+                message,
+                read,
+                related_quote,
+                related_customer
+            ) VALUES ($1, $2, $3, $4, false, $5, $6)
+            ON CONFLICT (id) DO NOTHING
+            RETURNING
+                id,
+                seller_id,
+                kind,
+                message,
+                timestamp,
+                read,
+                related_quote,
+                related_customer
+            `,
+            [
+                input.id,
+                input.sellerId,
+                input.kind,
+                input.message,
+                input.relatedQuote ?? null,
+                input.relatedCustomer ?? null,
+            ],
+        );
+    } catch (error) {
+        throwNotificationWriteError(error);
+    }
+
+    const row = result.rows[0];
+    if (!row) {
+        return { created: false as const, notification: null };
+    }
+
+    return { created: true as const, notification: mapRow(row) };
 }
 
 export async function markNotificationAsRead(id: string) {

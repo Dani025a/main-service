@@ -31,6 +31,9 @@ const EnvSchema = z.object({
     M2M_CLIENT_ID: z.string().min(1),
     M2M_CLIENT_SECRET: z.string().min(1),
 
+    SERVICEBUS_CONNECTION_STRING: z.string().min(1).optional(),
+    SERVICEBUS_QUEUE_NOTIFICATION: z.string().min(1).default("quote-notification-send"),
+
 
 });
 
