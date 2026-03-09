@@ -255,14 +255,42 @@ export async function startQuoteNotificationReceiver(): Promise<QuoteNotificatio
 
                 try {
                     const messageText = buildUserMessage(parsedPayload);
-                    const createdResult = await createNotificationIfMissing({
-                        id: parsedPayload.notificationId,
-                        sellerId: parsedPayload.sellerId,
-                        kind: "SYSTEM",
-                        message: messageText,
-                        relatedQuote: parsedPayload.quoteId,
-                        relatedCustomer: null,
-                    });
+                    let createdResult;
+                    let relatedQuoteLinked = true;
+
+                    try {
+                        createdResult = await createNotificationIfMissing({
+                            id: parsedPayload.notificationId,
+                            sellerId: parsedPayload.sellerId,
+                            kind: "SYSTEM",
+                            message: messageText,
+                            relatedQuote: parsedPayload.quoteId,
+                            relatedCustomer: null,
+                        });
+                    } catch (error) {
+                        if (!(error instanceof AppError) || error.code !== "VALIDATION_ERROR" || error.message !== "relatedQuote does not exist") {
+                            throw error;
+                        }
+
+                        relatedQuoteLinked = false;
+                        createdResult = await createNotificationIfMissing({
+                            id: parsedPayload.notificationId,
+                            sellerId: parsedPayload.sellerId,
+                            kind: "SYSTEM",
+                            message: messageText,
+                            relatedQuote: null,
+                            relatedCustomer: null,
+                        });
+
+                        logger.warn(
+                            {
+                                ...context,
+                                processingResult: "NOTIFICATION_SENT",
+                                relatedQuoteLinked,
+                            },
+                            "quote notification created without related quote link"
+                        );
+                    }
 
                     if (!createdResult.created) {
                         await persistOutcomeSafe({
@@ -291,6 +319,7 @@ export async function startQuoteNotificationReceiver(): Promise<QuoteNotificatio
                         {
                             ...context,
                             processingResult: "NOTIFICATION_SENT",
+                            relatedQuoteLinked,
                         },
                         "quote notification sent"
                     );
