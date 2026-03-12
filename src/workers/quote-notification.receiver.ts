@@ -20,13 +20,24 @@ const QuoteNotificationPayloadSchema = z.object({
     sellerId: z.string().min(1),
     reason: z.enum(["ACTION_BY_NON_SELLER", "SELLER_CHANGED"]),
     action: z.string().min(1),
-    actorType: z.string().min(1).optional(),
-    actorUserId: z.string().min(1).optional(),
-    actorEmail: z.string().min(1).optional(),
-    metadata: z.record(z.unknown()).optional(),
+    actorType: z.string().min(1).nullish(),
+    actorUserId: z.string().min(1).nullish(),
+    actorEmail: z.string().min(1).nullish(),
+    metadata: z
+        .record(z.unknown())
+        .nullish()
+        .transform((value) => value ?? {}),
 });
 
 type QuoteNotificationPayload = z.infer<typeof QuoteNotificationPayloadSchema>;
+
+type QuoteNotificationRecord = {
+    type: "QUOTE";
+    title: string;
+    body: string;
+    actionUrl: string;
+    metadata: Record<string, unknown>;
+};
 
 export type QuoteNotificationReceiverHandle = {
     close: () => Promise<void>;
@@ -64,15 +75,122 @@ function describeAction(action: string) {
     return action.toLowerCase().replaceAll("_", " ");
 }
 
-function buildUserMessage(payload: QuoteNotificationPayload): string {
-    const action = describeAction(payload.action);
-    const actor = payload.actorEmail ?? payload.actorUserId ?? payload.actorType ?? "another user";
+function actorLabel(payload: QuoteNotificationPayload): string {
+    return payload.actorEmail ?? payload.actorUserId ?? payload.actorType ?? "another user";
+}
+
+function metadataString(metadata: Record<string, unknown>, key: string): string {
+    const value = metadata[key];
+    return typeof value === "string" ? value : "";
+}
+
+function buildNotificationRecord(payload: QuoteNotificationPayload): QuoteNotificationRecord {
+    const actor = actorLabel(payload);
+    const baseMetadata: Record<string, unknown> = {
+        quoteId: payload.quoteId,
+        offerNumber: payload.offerNumber,
+        reason: payload.reason,
+        action: payload.action,
+        actorType: payload.actorType ?? null,
+        actorUserId: payload.actorUserId ?? null,
+        actorEmail: payload.actorEmail ?? null,
+        ...payload.metadata,
+    };
 
     if (payload.reason === "SELLER_CHANGED") {
-        return `Seller assignment changed for quote ${payload.offerNumber}. Last action: ${action}.`;
+        const previousSellerId = metadataString(payload.metadata, "previousSellerId");
+        const newSellerId = metadataString(payload.metadata, "newSellerId");
+        const assignedToYou = payload.sellerId === newSellerId && newSellerId.length > 0;
+
+        if (assignedToYou) {
+            return {
+                type: "QUOTE",
+                title: "Quote assigned to you",
+                body: `${payload.offerNumber} was assigned to you by ${actor}.`,
+                actionUrl: `/quotes/${payload.quoteId}`,
+                metadata: {
+                    ...baseMetadata,
+                    previousSellerId,
+                    newSellerId,
+                },
+            };
+        }
+
+        if (previousSellerId === payload.sellerId) {
+            return {
+                type: "QUOTE",
+                title: "Quote reassigned",
+                body: `${payload.offerNumber} is no longer assigned to you.`,
+                actionUrl: `/quotes/${payload.quoteId}`,
+                metadata: {
+                    ...baseMetadata,
+                    previousSellerId,
+                    newSellerId,
+                },
+            };
+        }
+
+        return {
+            type: "QUOTE",
+            title: "Quote seller changed",
+            body: `Seller assignment changed for ${payload.offerNumber}.`,
+            actionUrl: `/quotes/${payload.quoteId}`,
+            metadata: {
+                ...baseMetadata,
+                previousSellerId,
+                newSellerId,
+            },
+        };
     }
 
-    return `Quote ${payload.offerNumber} was ${action} by ${actor}.`;
+    if (payload.action === "QUOTE_CREATED") {
+        return {
+            type: "QUOTE",
+            title: "Quote created by another user",
+            body: `${payload.offerNumber} was created on your behalf.`,
+            actionUrl: `/quotes/${payload.quoteId}`,
+            metadata: baseMetadata,
+        };
+    }
+
+    if (payload.action === "QUOTE_UPDATED") {
+        return {
+            type: "QUOTE",
+            title: "Quote updated by another user",
+            body: `${payload.offerNumber} was updated by ${actor}.`,
+            actionUrl: `/quotes/${payload.quoteId}`,
+            metadata: baseMetadata,
+        };
+    }
+
+    if (payload.action === "QUOTE_SEND_REQUESTED") {
+        return {
+            type: "QUOTE",
+            title: "Quote send requested",
+            body: `${payload.offerNumber} was marked for sending by ${actor}.`,
+            actionUrl: `/quotes/${payload.quoteId}`,
+            metadata: baseMetadata,
+        };
+    }
+
+    if (payload.action.startsWith("QUOTE_STATUS_CHANGED:")) {
+        return {
+            type: "QUOTE",
+            title: "Quote status changed",
+            body: `${payload.offerNumber} changed status because of an action by ${actor}.`,
+            actionUrl: `/quotes/${payload.quoteId}`,
+            metadata: baseMetadata,
+        };
+    }
+
+    const action = describeAction(payload.action);
+    return {
+        type: "QUOTE",
+        title: "Quote notification",
+        body: `${payload.offerNumber} was ${action} by ${actor}.`,
+        actionUrl: `/quotes/${payload.quoteId}`,
+        metadata: baseMetadata,
+    };
 }
 
 async function persistOutcomeSafe(input: {
@@ -88,7 +206,7 @@ async function persistOutcomeSafe(input: {
         actorEmail: string | null;
         occurredAt: string | null;
     };
-    processingResult: "NOTIFICATION_SENT" | "DUPLICATE_IGNORED" | "RETRY_PENDING" | "INVALID_PAYLOAD" | "SELLER_NOT_FOUND";
+    processingResult: "NOTIFICATION_CREATED" | "DUPLICATE_IGNORED" | "RETRY_PENDING" | "INVALID_PAYLOAD" | "SELLER_NOT_FOUND";
     errorCode?: string | null;
     errorMessage?: string | null;
 }) {
@@ -254,16 +372,23 @@ export async function startQuoteNotificationReceiver(): Promise<QuoteNotificatio
                 };
 
                 try {
-                    const messageText = buildUserMessage(parsedPayload);
+                    const notification = buildNotificationRecord(parsedPayload);
                     let createdResult;
                     let relatedQuoteLinked = true;
 
                     try {
                         createdResult = await createNotificationIfMissing({
                             id: parsedPayload.notificationId,
+                            userId: parsedPayload.sellerId,
                             sellerId: parsedPayload.sellerId,
+                            type: notification.type,
                             kind: "SYSTEM",
-                            message: messageText,
+                            title: notification.title,
+                            body: notification.body,
+                            actionUrl: notification.actionUrl,
+                            metadata: notification.metadata,
+                            createdAt: parsedPayload.occurredAt,
+                            message: notification.body,
                             relatedQuote: parsedPayload.quoteId,
                             relatedCustomer: null,
                         });
@@ -275,9 +400,16 @@ export async function startQuoteNotificationReceiver(): Promise<QuoteNotificatio
                         relatedQuoteLinked = false;
                         createdResult = await createNotificationIfMissing({
                             id: parsedPayload.notificationId,
+                            userId: parsedPayload.sellerId,
                             sellerId: parsedPayload.sellerId,
+                            type: notification.type,
                             kind: "SYSTEM",
-                            message: messageText,
+                            title: notification.title,
+                            body: notification.body,
+                            actionUrl: notification.actionUrl,
+                            metadata: notification.metadata,
+                            createdAt: parsedPayload.occurredAt,
+                            message: notification.body,
                             relatedQuote: null,
                             relatedCustomer: null,
                         });
@@ -285,7 +417,7 @@ export async function startQuoteNotificationReceiver(): Promise<QuoteNotificatio
                         logger.warn(
                             {
                                 ...context,
-                                processingResult: "NOTIFICATION_SENT",
+                                processingResult: "NOTIFICATION_CREATED",
                                 relatedQuoteLinked,
                             },
                             "quote notification created without related quote link"
@@ -312,16 +444,16 @@ export async function startQuoteNotificationReceiver(): Promise<QuoteNotificatio
 
                     await persistOutcomeSafe({
                         payload: context,
-                        processingResult: "NOTIFICATION_SENT",
+                        processingResult: "NOTIFICATION_CREATED",
                     });
 
                     logger.info(
                         {
                             ...context,
-                            processingResult: "NOTIFICATION_SENT",
+                            processingResult: "NOTIFICATION_CREATED",
                             relatedQuoteLinked,
                         },
-                        "quote notification sent"
+                        "quote notification created"
                     );
 
                     await receiver.completeMessage(message);

@@ -2,10 +2,12 @@ import { createApp } from "./app.js";
 import { env } from "./config/env.js";
 import { logger } from "./config/logger.js";
 import { startQuoteNotificationReceiver } from "./workers/quote-notification.receiver.js";
+import { startTaskDeadlineNotificationWorker } from "./workers/task-deadline-notification.worker.js";
 
 async function main() {
     const app = await createApp();
     const quoteNotificationReceiver = await startQuoteNotificationReceiver();
+    const taskDeadlineNotificationWorker = await startTaskDeadlineNotificationWorker();
     let isShuttingDown = false;
 
     const server = app.listen(env.PORT, () => {
@@ -30,6 +32,8 @@ async function main() {
             if (quoteNotificationReceiver) {
                 await quoteNotificationReceiver.close();
             }
+
+            await taskDeadlineNotificationWorker.close();
 
             await new Promise<void>((resolve, reject) => {
                 server.close((err) => {

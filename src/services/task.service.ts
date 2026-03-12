@@ -2,6 +2,7 @@ import { db } from "../db/db.js";
 import { AppError } from "../utils/errors.js";
 
 export const taskStatuses = ["AFVENTER", "IGANG", "UDFORT", "ANNULLERET"] as const;
+export const taskStatusesWithOpenDeadlines = ["AFVENTER", "IGANG"] as const;
 
 export type TaskStatus = (typeof taskStatuses)[number];
 
@@ -81,6 +82,36 @@ export async function listTasks(input: {
         ORDER BY deadline ASC NULLS LAST, id ASC
         `,
         values,
+    );
+
+    return result.rows.map(mapRow);
+}
+
+export async function listTasksApproachingDeadline(input: {
+    from: string;
+    to: string;
+    statuses?: TaskStatus[];
+}) {
+    const statuses = input.statuses ?? [...taskStatusesWithOpenDeadlines];
+    const result = await db.query<TaskRow>(
+        `
+        SELECT
+            id,
+            title,
+            seller_id,
+            customer_id,
+            quote_id,
+            deadline,
+            status
+        FROM tasks
+        WHERE
+            deadline IS NOT NULL
+            AND deadline >= $1
+            AND deadline <= $2
+            AND status = ANY($3::task_status[])
+        ORDER BY deadline ASC, id ASC
+        `,
+        [input.from, input.to, statuses],
     );
 
     return result.rows.map(mapRow);
