@@ -32,7 +32,13 @@ const EnvSchema = z.object({
     M2M_CLIENT_SECRET: z.string().min(1),
 
     SERVICEBUS_CONNECTION_STRING: z.string().min(1).optional(),
+<<<<<<< HEAD
     SERVICEBUS_QUEUE_NOTIFICATION: z.string().min(1).default("quote-notification-send"),
+=======
+    SERVICEBUS_QUEUE_NOTIFICATION: z.string().min(1).default("notification-send"),
+    TASK_DEADLINE_NOTIFICATION_INTERVAL_MS: z.coerce.number().int().min(1_000).default(300_000),
+    TASK_DEADLINE_NOTIFICATION_LOOKAHEAD_MINUTES: z.coerce.number().int().min(1).default(1_440),
+>>>>>>> da5cc86 (added readme and logic for automatic notification for tasks)
 
 
 });

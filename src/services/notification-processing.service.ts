@@ -1,7 +1,7 @@
 import { db } from "../db/db.js";
 
 export const notificationProcessingResults = [
-    "NOTIFICATION_SENT",
+    "NOTIFICATION_CREATED",
     "DUPLICATE_IGNORED",
     "RETRY_PENDING",
     "INVALID_PAYLOAD",
