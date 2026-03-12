@@ -20,10 +20,13 @@ const QuoteNotificationPayloadSchema = z.object({
     sellerId: z.string().min(1),
     reason: z.enum(["ACTION_BY_NON_SELLER", "SELLER_CHANGED"]),
     action: z.string().min(1),
-    actorType: z.string().min(1).optional(),
-    actorUserId: z.string().min(1).optional(),
-    actorEmail: z.string().min(1).optional(),
-    metadata: z.record(z.unknown()).optional(),
+    actorType: z.string().min(1).nullish(),
+    actorUserId: z.string().min(1).nullish(),
+    actorEmail: z.string().min(1).nullish(),
+    metadata: z
+        .record(z.unknown())
+        .nullish()
+        .transform((value) => value ?? {}),
 });
 
 type QuoteNotificationPayload = z.infer<typeof QuoteNotificationPayloadSchema>;
@@ -72,17 +75,6 @@ function describeAction(action: string) {
     return action.toLowerCase().replaceAll("_", " ");
 }
 
-<<<<<<< HEAD
-function buildUserMessage(payload: QuoteNotificationPayload): string {
-    const action = describeAction(payload.action);
-    const actor = payload.actorEmail ?? payload.actorUserId ?? payload.actorType ?? "another user";
-
-    if (payload.reason === "SELLER_CHANGED") {
-        return `Seller assignment changed for quote ${payload.offerNumber}. Last action: ${action}.`;
-    }
-
-    return `Quote ${payload.offerNumber} was ${action} by ${actor}.`;
-=======
 function actorLabel(payload: QuoteNotificationPayload): string {
     return payload.actorEmail ?? payload.actorUserId ?? payload.actorType ?? "another user";
 }
@@ -199,7 +191,6 @@ function buildNotificationRecord(payload: QuoteNotificationPayload): QuoteNotifi
         actionUrl: `/quotes/${payload.quoteId}`,
         metadata: baseMetadata,
     };
->>>>>>> da5cc86 (added readme and logic for automatic notification for tasks)
 }
 
 async function persistOutcomeSafe(input: {
